@@ -351,6 +351,8 @@ const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const PBKDF2_ITERS = 310000;
 const LS_VAULT = "carteira.vault.v1";
 const LS_WEBAUTHN = "carteira.webauthn.v1";
+const LS_SESSION = "carteira.session.v1";
+const GRACE_MS = 10*60*1000; // mantém desbloqueado por 10 min após fechar/ficar ocioso
 
 async function deriveKey(password, salt){
   const base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
@@ -378,6 +380,8 @@ let idleTimer = null;
 let animateCards = true;   // anima cards só na entrada (não a cada re-render)
 let suppressClick = false; // ignora o clique que segue um arraste
 let drag = null;           // estado do arraste em andamento
+let sessionKeyB64 = null;  // chave em cache p/ a janela de tolerância
+let lastBump = 0;
 
 const $ = s => document.querySelector(s);
 const fmt = (n, cur) => {
@@ -484,7 +488,9 @@ async function persist(){
 }
 
 function lockNow(){
+  clearTimeout(idleTimer);
   KEY=null; STATE=null; openAcctId=null;
+  clearSession();
   closeModal();
   showLock();
 }
@@ -496,16 +502,64 @@ function enterApp(){
   migrate();
   animateCards=true;
   render();
+  bumpSession();
   armIdle();
 }
 
-/* ---------- auto-lock por inatividade (5 min) ---------- */
+/* ---------- janela de tolerância de 10 min ----------
+   Ao fechar/minimizar o app NÃO bloqueia na hora: guarda a sessão por 10 min.
+   Reabrindo dentro de 10 min, entra direto; após 10 min, pede a senha.        */
+async function bumpSession(){
+  if(!KEY) return;
+  try{
+    if(!sessionKeyB64){ const raw=await crypto.subtle.exportKey("raw", KEY); sessionKeyB64=b64(raw); }
+    localStorage.setItem(LS_SESSION, JSON.stringify({ k:sessionKeyB64, exp:Date.now()+GRACE_MS }));
+  }catch(e){}
+}
+function readSession(){ try{ return JSON.parse(localStorage.getItem(LS_SESSION)); }catch(e){ return null; } }
+function clearSession(){ localStorage.removeItem(LS_SESSION); sessionKeyB64=null; }
+
+async function tryResume(){
+  const s=readSession();
+  if(s && s.exp>Date.now() && s.k && hasVault()){
+    try{
+      const stored=JSON.parse(localStorage.getItem(LS_VAULT));
+      SALT=unb64(stored.salt);
+      KEY=await crypto.subtle.importKey("raw", unb64(s.k), {name:"AES-GCM"}, true, ["encrypt","decrypt"]);
+      STATE=await decryptVault(KEY, stored.iv, stored.ct);
+      sessionKeyB64=s.k;
+      enterApp();
+      return true;
+    }catch(e){ KEY=null; STATE=null; }
+  }
+  clearSession();
+  return false;
+}
+
 function armIdle(){
   clearTimeout(idleTimer);
-  idleTimer=setTimeout(()=>{ if(KEY) { toast("Bloqueado por inatividade"); lockNow(); } }, 5*60*1000);
+  idleTimer=setTimeout(()=>{ if(KEY){ toast("Bloqueado por inatividade"); lockNow(); } }, GRACE_MS);
 }
-["click","keydown","touchstart","mousemove"].forEach(e=>document.addEventListener(e,()=>{ if(KEY) armIdle(); },{passive:true}));
-document.addEventListener("visibilitychange",()=>{ if(document.hidden && KEY) lockNow(); });
+function onActivity(){
+  if(!KEY) return;
+  armIdle();
+  const now=Date.now();
+  if(now-lastBump>20000){ lastBump=now; bumpSession(); } // renova a janela (no máx. a cada 20s)
+}
+["click","keydown","touchstart","pointerdown","mousemove"].forEach(e=>document.addEventListener(e,onActivity,{passive:true}));
+
+document.addEventListener("visibilitychange",()=>{
+  if(!KEY) return;
+  if(document.hidden){
+    clearTimeout(idleTimer);   // sem bloqueio imediato
+    bumpSession();             // 10 min a partir de agora
+  }else{
+    const s=readSession();
+    if(!s || s.exp<Date.now()){ lockNow(); }  // passou de 10 min em segundo plano → pede senha
+    else armIdle();
+  }
+});
+window.addEventListener("pagehide",()=>{ if(KEY) bumpSession(); });
 
 /* ============================================================
    FACE ID / TOUCH ID  (WebAuthn + extensão PRF)
@@ -1032,7 +1086,7 @@ function openSettings(){
         <button class="btn sm ghost" id="chgPw">Trocar senha mestra</button>
         <button class="btn sm ghost danger" id="wipe">Apagar tudo</button>
       </div>
-      <div class="note" style="margin-top:18px">Seus dados financeiros existem apenas cifrados, neste navegador, e nunca são enviados a servidores. A única chamada de rede possível é a busca opcional de cotações (envia só o código da moeda base, ex.: "AED" — nada pessoal). A senha mestra nunca é gravada.</div>
+      <div class="note" style="margin-top:18px">Seus dados financeiros ficam cifrados neste navegador e nunca são enviados a servidores. Por conveniência, o app continua aberto por <b>10 min</b> após você fechá-lo ou deixá-lo ocioso — nesse intervalo a chave fica guardada no dispositivo; depois disso, a senha é exigida de novo. Toque no cadeado para bloquear na hora. A única chamada de rede possível é a busca opcional de cotações (envia só o código da moeda base). A senha mestra nunca é gravada.</div>
     </div>
   `);
   $("#sClose").onclick=closeModal;
@@ -1112,13 +1166,15 @@ function openSettings(){
     SALT=crypto.getRandomValues(new Uint8Array(16));
     KEY=await deriveKey(np, SALT);
     localStorage.removeItem(LS_WEBAUTHN); // invalida envelope antigo do Face ID
+    sessionKeyB64=null; // recria o cache da sessão com a nova chave
     await persist();
+    await bumpSession();
     toast("Senha alterada. Reative o Face ID se desejar.");
     closeModal();
   };
   $("#wipe").onclick=async()=>{
     if(!(await uiConfirm("Apagar <b>TODO</b> o cofre deste dispositivo? Sem um backup, é irreversível.", {title:"Apagar tudo", okText:"Apagar tudo", danger:true}))) return;
-    localStorage.removeItem(LS_VAULT); localStorage.removeItem(LS_WEBAUTHN);
+    localStorage.removeItem(LS_VAULT); localStorage.removeItem(LS_WEBAUTHN); clearSession();
     KEY=null; STATE=null; toast("Tudo apagado."); showLock();
   };
 }
@@ -1137,7 +1193,7 @@ if(!crypto.subtle){
   $("#lockSub").textContent="Este navegador não suporta criptografia segura (Web Crypto). Use um navegador moderno via HTTPS.";
   $("#lockBtn").disabled=true;
 } else {
-  showLock();
+  tryResume().then(ok=>{ if(!ok) showLock(); });
 }
 </script>
 </body>

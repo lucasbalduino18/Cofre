@@ -146,20 +146,23 @@
   .sec-head .count{font-size:13px;color:var(--ink-faint)}
 
   /* ---------- CARDS ---------- */
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px}
   .card{
-    position:relative;border-radius:var(--r);padding:20px;cursor:pointer;
+    position:relative;border-radius:var(--r);padding:16px;cursor:pointer;
     background:linear-gradient(160deg,var(--panel-2),var(--panel));
     border:1px solid var(--line);transition:transform .18s, border-color .2s, box-shadow .2s;
-    min-height:158px;display:flex;flex-direction:column;justify-content:space-between;
-    animation:rise .5s cubic-bezier(.2,.7,.2,1) both;
+    aspect-ratio:1/1;min-height:0;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
+    animation:rise .5s cubic-bezier(.2,.7,.2,1) both;touch-action:manipulation;
   }
   .card:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:var(--shadow)}
-  .card:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:0 3px 3px 0;background:var(--acc,var(--teal))}
-  .card-top{display:flex;justify-content:space-between;align-items:flex-start}
-  .card .nm{font-size:16px;font-weight:600;letter-spacing:-.01em}
-  .card .inst{font-size:12px;color:var(--ink-faint);margin-top:2px}
-  .chip{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink-soft)}
+  .card.dragging{z-index:50;pointer-events:none;cursor:grabbing;opacity:.97;
+    box-shadow:0 30px 60px -14px rgba(0,0,0,.85);transition:none;transform-origin:center}
+  .card.drop-target{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal) inset}
+  .card:before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--acc,var(--teal))}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .card .nm{font-size:14.5px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+  .card .inst{font-size:11px;color:var(--ink-faint);margin-top:2px}
+  .chip{font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink-soft);white-space:nowrap;flex:none}
   .chip.inv{background:rgba(201,164,90,.14);border-color:rgba(201,164,90,.42);color:var(--brass-soft)}
   .needrate{color:var(--neg);font-size:11px;font-weight:600;cursor:help}
   .rate-warn{display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:12.5px;color:var(--brass-soft);
@@ -169,18 +172,18 @@
   .rate-row input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink);font-family:'JetBrains Mono';font-size:14px;text-align:right}
   .rate-row input:focus{outline:none;border-color:var(--teal)}
   .rate-row .rb{font-family:'JetBrains Mono';font-size:13px;color:var(--ink-faint);min-width:40px}
-  .card .bal{font-family:'JetBrains Mono';font-size:26px;font-weight:600;letter-spacing:-.02em;margin-top:14px}
-  .card .bal .c{font-size:.55em;color:var(--ink-faint);margin-right:5px;font-weight:500}
-  .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
-  .yield{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono';font-size:14px;font-weight:600}
-  .yield svg{width:13px;height:13px}
-  .card .updated{font-size:11px;color:var(--ink-faint)}
+  .card .bal{font-family:'JetBrains Mono';font-size:19px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .bal .c{font-size:.6em;color:var(--ink-faint);margin-right:4px;font-weight:500}
+  .card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:8px}
+  .yield{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono';font-size:13px;font-weight:600}
+  .yield svg{width:12px;height:12px}
+  .card .updated{font-size:10px;color:var(--ink-faint);white-space:nowrap}
   .add-card{
     border:1.5px dashed var(--line-strong);background:transparent;display:flex;align-items:center;justify-content:center;
-    flex-direction:column;gap:10px;color:var(--ink-faint);min-height:158px;border-radius:var(--r);transition:.2s;
+    flex-direction:column;gap:8px;color:var(--ink-faint);aspect-ratio:1/1;min-height:0;border-radius:var(--r);transition:.2s;font-size:13px;
   }
   .add-card:hover{color:var(--ink);border-color:var(--teal);background:rgba(63,182,168,.04)}
-  .add-card svg{width:26px;height:26px}
+  .add-card svg{width:24px;height:24px}
 
   .empty{text-align:center;padding:50px 20px;color:var(--ink-faint)}
 
@@ -328,6 +331,7 @@
   </section>
 
   <div class="sec-head"><h2 class="serif">Minhas Contas</h2><span class="count" id="secCount"></span></div>
+  <div style="font-size:12px;color:var(--ink-faint);margin:-6px 4px 14px">Toque para abrir · segure e arraste para reordenar</div>
   <div class="cards" id="cards"></div>
 </div>
 
@@ -371,6 +375,9 @@ let SALT = null;         // Uint8Array
 let STATE = null;        // { baseCurrency, accounts:[...] }
 let openAcctId = null;
 let idleTimer = null;
+let animateCards = true;   // anima cards só na entrada (não a cada re-render)
+let suppressClick = false; // ignora o clique que segue um arraste
+let drag = null;           // estado do arraste em andamento
 
 const $ = s => document.querySelector(s);
 const fmt = (n, cur) => {
@@ -487,6 +494,7 @@ function enterApp(){
   $("#app").classList.remove("hidden");
   $("#pwUnlock").value=""; $("#pw1").value=""; $("#pw2").value="";
   migrate();
+  animateCards=true;
   render();
   armIdle();
 }
@@ -677,6 +685,77 @@ function portfolioStats(){
 }
 
 /* ============================================================
+   ARRASTAR PARA REORDENAR  (segurar ~280ms e arrastar; touch + mouse)
+   - toque rápido = abre a conta;  segurar e mover = reordena
+   ============================================================ */
+const HOLD_MS = 280, MOVE_CANCEL = 10;
+function attachDrag(el, id){
+  el.addEventListener("pointerdown", e=>{
+    if(e.pointerType==="mouse" && e.button!==0) return;
+    drag = { id, el, sx:e.clientX, sy:e.clientY, pid:e.pointerId, started:false, target:null };
+    drag.timer = setTimeout(()=>beginDrag(), HOLD_MS);
+    window.addEventListener("pointermove", onDragMove, {passive:false});
+    window.addEventListener("pointerup", onDragUp, {passive:false});
+    window.addEventListener("pointercancel", onDragUp, {passive:false});
+  });
+}
+function beginDrag(){
+  if(!drag) return;
+  drag.started = true;
+  try{ drag.el.setPointerCapture(drag.pid); }catch(e){}
+  drag.el.classList.add("dragging");
+  document.body.style.userSelect="none";
+  if(navigator.vibrate) navigator.vibrate(8);
+}
+function onDragMove(e){
+  if(!drag) return;
+  const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+  if(!drag.started){
+    if(Math.hypot(dx,dy) > MOVE_CANCEL){ clearTimeout(drag.timer); teardownDrag(); } // rolando a tela
+    return;
+  }
+  e.preventDefault();
+  drag.el.style.transform = `translate(${dx}px,${dy}px) scale(1.05)`;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const card = under && under.closest(".card");
+  document.querySelectorAll(".card.drop-target").forEach(c=>c.classList.remove("drop-target"));
+  if(card && card!==drag.el && card.dataset.id){ card.classList.add("drop-target"); drag.target = card.dataset.id; }
+  else drag.target = null;
+}
+function onDragUp(){
+  if(!drag) return;
+  clearTimeout(drag.timer);
+  const wasDrag = drag.started, fromId = drag.id, toId = drag.target;
+  teardownDrag();
+  if(wasDrag){
+    suppressClick = true;
+    setTimeout(()=>{ suppressClick=false; }, 350);
+    if(toId && toId!==fromId) reorderAccounts(fromId, toId);
+    else render(); // solto fora: desfaz o transform
+  }
+}
+function teardownDrag(){
+  window.removeEventListener("pointermove", onDragMove);
+  window.removeEventListener("pointerup", onDragUp);
+  window.removeEventListener("pointercancel", onDragUp);
+  document.body.style.userSelect="";
+  document.querySelectorAll(".card.drop-target").forEach(c=>c.classList.remove("drop-target"));
+  if(drag && drag.el){ drag.el.classList.remove("dragging"); drag.el.style.transform=""; }
+  drag = null;
+}
+async function reorderAccounts(fromId, toId){
+  const from = STATE.accounts.findIndex(a=>a.id===fromId);
+  const toOrig = STATE.accounts.findIndex(a=>a.id===toId);
+  if(from<0 || toOrig<0 || from===toOrig) return;
+  const [item] = STATE.accounts.splice(from,1);
+  let to = STATE.accounts.findIndex(a=>a.id===toId);
+  if(from < toOrig) to += 1; // arrastando para frente: o card assume a posição do alvo
+  STATE.accounts.splice(to,0,item);
+  await persist();
+  render();
+}
+
+/* ============================================================
    RENDER
    ============================================================ */
 const PALETTE = ["#3fb6a8","#c9a45a","#7aa2f7","#e57373","#9ece6a","#bb9af7","#e0af68","#5fb3b3"];
@@ -710,7 +789,8 @@ function render(){
     const noRate = cur!==base && rateFor(cur)===null && cb!=null;
     const chip = a.investment ? `<span class="chip inv">Investimento</span>` : `<span class="chip">${a.type==='cash'?'Dinheiro':'Banco'}</span>`;
     const el=document.createElement("div");
-    el.className="card"; el.style.setProperty("--acc",acccolor); el.style.animationDelay=(i*0.04)+"s";
+    el.className="card"; el.dataset.id=a.id; el.style.setProperty("--acc",acccolor);
+    if(animateCards) el.style.animationDelay=(i*0.04)+"s"; else el.style.animation="none";
     el.innerHTML=`
       <div class="card-top">
         <div><div class="nm">${esc(a.name)}</div>${a.institution?`<div class="inst">${esc(a.institution)}</div>`:""}</div>
@@ -723,15 +803,18 @@ function render(){
           <span class="updated">${lu?('atual. '+monthLabel(lu)):'sem dados'}</span>
         </div>
       </div>`;
-    el.onclick=()=>openAccount(a.id);
+    el.onclick=()=>{ if(suppressClick){ suppressClick=false; return; } openAccount(a.id); };
+    attachDrag(el, a.id);
     wrap.appendChild(el);
   });
 
   const add=document.createElement("button");
   add.className="add-card";
+  if(!animateCards) add.style.animation="none";
   add.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Adicionar conta</span>`;
   add.onclick=()=>openAccount(null);
   wrap.appendChild(add);
+  animateCards=false;
 }
 function setSigned(el, v){
   if(v==null){ el.textContent="—"; el.className="v"; return; }
